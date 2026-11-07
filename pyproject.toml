@@ -1,0 +1,74 @@
+[project]
+name = "aiollm-codegen"
+version = "0.1.0"
+description = "Generate aiollm-compatible Pydantic models from OpenAPI schemas"
+readme = "README.md"
+authors = [
+    { name = "GrehBan", email = "57055685+GrehBan@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "datamodel-code-generator>=0.87,<0.88",
+    "pydantic>=2.14,<3",
+    "pyyaml>=6.0.3",
+    "ruff>=0.17.3,<0.18",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+aiollm-codegen = "aiollm_codegen.cli:main"
+
+[tool.ruff]
+extend = "src/aiollm_codegen/strict.toml"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "PLR2004"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+python_version = "3.13"
+strict = true
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+# Match aiollm diagnostics for validated JSON boundary values.
+reportUnknownArgumentType = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "-ra"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["aiollm_codegen"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 98
+
+[dependency-groups]
+dev = [
+    "aiollm",
+    "jsonschema>=4.26.0",
+    "mypy>=2.4.1",
+    "pyright>=1.1.414",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "pytest-mypy>=1.1.0",
+    "rumdl>=0.3.2",
+    "types-jsonschema>=4.26.0.20261006",
+    "types-pyyaml>=6.0.12.20261103",
+]
+
+[tool.uv.sources]
+aiollm = { path = "../aiollm", editable = true }

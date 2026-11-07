@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: Example generation provider
+  version: 1.0.0
+paths:
+  /responses:
+    post:
+      operationId: createResponse
+      tags: [Responses]
+      summary: Create a response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequest'
+      responses:
+        '200':
+          description: A generated response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationResponse'
+components:
+  schemas:
+    CreateRequest:
+      description: A provider generation request.
+      type: object
+      required: [model, messages, nullableRequired]
+      properties:
+        model:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        max-tokens:
+          type: integer
+          minimum: 1
+          default: 256
+        nullableRequired:
+          type: [string, 'null']
+        optionalNullable:
+          type: [string, 'null']
+          default: null
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+    Message:
+      description: One input turn.
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+    GenerationResponse:
+      description: A completed provider result.
+      type: object
+      additionalProperties: false
+      required: [id, output]
+      properties:
+        id:
+          type: string
+        output:
+          type: string
+        usage:
+          $ref: '#/components/schemas/Usage'
+    Usage:
+      type: object
+      properties:
+        output-tokens:
+          type: integer
+          minimum: 0

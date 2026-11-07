@@ -1,0 +1,40 @@
+name: checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: aiollm_codegen
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: aiollm_codegen
+      - uses: actions/checkout@v7
+        with:
+          repository: GrehBan/aiollm
+          ref: e2b7013c95ecf59e3819a79779fca5a3ee3a2020
+          path: aiollm
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          python-version: '3.13'
+      - run: uv sync --all-groups --locked
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run mypy src
+      - run: uv run pyright
+      - run: uv run pytest --mypy -m mypy tests/typing
+      - run: uv run pytest --cov --cov-branch
+      - run: uv run rumdl check README.md AGENTS.md
+      - run: uv lock --check
+      - run: uv pip check
+      - run: uv build
