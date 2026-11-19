@@ -19,6 +19,7 @@ from aiollm_codegen.generator import generate_models
 from aiollm_codegen.operations import OperationOverrides
 from aiollm_codegen.package import generate_package
 from aiollm_codegen.publication import publish_package
+from aiollm_codegen.schema import load_document, merge_documents
 
 
 class _Arguments(BaseModel):
@@ -33,6 +34,7 @@ class _Arguments(BaseModel):
     streams: list[str]
     headers: list[str]
     contract: str | None
+    merge: list[Path]
 
 
 def _arguments(argv: Sequence[str] | None) -> _Arguments:
@@ -73,6 +75,15 @@ def _arguments(argv: Sequence[str] | None) -> _Arguments:
         help="Read a snapshot folder (request/response/stream.schema.json) "
         "as POST PATH; requires --package",
     )
+    parser.add_argument(
+        "--merge",
+        metavar="SPEC",
+        type=Path,
+        action="append",
+        default=[],
+        help="Add the paths and schemas of another OpenAPI document "
+        "(repeatable); requires --package",
+    )
     for flag, destination, meaning in (
         ("--name", "names", "operationId=MethodClass name"),
         ("--stream", "streams", "operationId=EventSchema stream to add"),
@@ -97,6 +108,7 @@ def _arguments(argv: Sequence[str] | None) -> _Arguments:
             arguments.streams,
             arguments.headers,
             arguments.contract,
+            arguments.merge,
         )
     ):
         parser.error(
@@ -134,10 +146,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise ValueError(
                     "OpenAPI source must be outside the output package"
                 )
-            files = generate_package(
-                arguments.source
+            document = (
+                load_document(arguments.source)
                 if arguments.contract is None
-                else contract_document(arguments.source, arguments.contract),
+                else contract_document(arguments.source, arguments.contract)
+            )
+            files = generate_package(
+                merge_documents(
+                    document,
+                    *(load_document(spec) for spec in arguments.merge),
+                ),
                 operation_ids=arguments.operations,
                 schema_groups=_pairs("--group", arguments.groups),
                 overrides=OperationOverrides(

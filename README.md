@@ -140,6 +140,24 @@ uv run aiollm-codegen ../aiollm/tests/providers/contracts/anthropic/messages \
   --header anthropic-version=2026-10-21 -o generated/anthropic
 ```
 
+`--merge SPEC` (repeatable) adds the paths and component schemas of
+another OpenAPI document to the source, so one package can come from
+several specifications, such as the Messages snapshot and a document of
+Anthropic's Files API. The source keeps its `info` and servers; an
+operation declared twice, or one component schema declared differently,
+is an error.
+
+```bash
+contracts=../aiollm/tests/providers/contracts
+uv run aiollm-codegen "$contracts/anthropic/messages" \
+  --package --contract /messages \
+  --merge "$contracts/sources/anthropic-files.openapi.json" \
+  --header anthropic-version=2026-10-21 -o generated/anthropic
+```
+
+A property or parameter written with brackets, such as the `ids[]` query
+parameter, becomes the field `ids` and keeps `ids[]` as its wire alias.
+
 Specifications that leave out aiollm details take explicit corrections:
 `--name operationId=CreateMessage` sets a method class (its stream becomes
 `StreamMessage`), `--stream operationId=EventSchema` adds a

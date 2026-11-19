@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 from aiollm_codegen import generate_models
-from aiollm_codegen.schema import load_schemas, schema_nodes
+from aiollm_codegen.schema import load_schemas, merge_documents, schema_nodes
 from pydantic import JsonValue
 
 
@@ -216,3 +216,82 @@ def test_multiple_module_backend_result_rejected(
         pytest.raises(ValueError, match="single generated module"),
     ):
         generate_models(path, kind="request")
+
+
+def test_merge_documents_requires_objects() -> None:
+    base: dict[str, Any] = {
+        "openapi": "3.1.0",
+        "paths": {},
+        "components": {"schemas": {"A": {"type": "string"}}},
+    }
+    other: dict[str, Any] = {"paths": [], "components": {"schemas": {}}}
+
+    with pytest.raises(ValueError, match="Expected an object for paths"):
+        merge_documents(base, other)
+    assert merge_documents(base) == base
+
+
+def _document(**extra: Any) -> dict[str, Any]:
+    """A minimal document with the given paths and components."""
+    return {
+        "openapi": "3.1.0",
+        "paths": extra.get("paths", {}),
+        "components": extra.get("components", {"schemas": {}}),
+    }
+
+
+def test_merge_documents_keeps_every_component_section() -> None:
+    limit = {"in": "query", "name": "limit", "schema": {"type": "integer"}}
+    other = _document(
+        paths={
+            "/files": {
+                "get": {
+                    "parameters": [{"$ref": "#/components/parameters/Limit"}]
+                }
+            }
+        },
+        components={"schemas": {}, "parameters": {"Limit": limit}},
+    )
+
+    merged = merge_documents(_document(), other)
+    components: Any = merged["components"]
+
+    assert components["parameters"] == {"Limit": limit}
+    with pytest.raises(ValueError, match="disagree on parameters Limit"):
+        merge_documents(
+            merged,
+            _document(components={"parameters": {"Limit": {"in": "path"}}}),
+        )
+
+
+def test_merge_documents_merges_path_fields() -> None:
+    shared = [{"in": "path", "name": "id", "schema": {"type": "string"}}]
+    base = _document(
+        paths={"/f/{id}": {"parameters": shared, "get": {"summary": "Get"}}}
+    )
+    other = _document(
+        paths={"/f/{id}": {"parameters": shared, "delete": {"summary": "Del"}}}
+    )
+
+    merged = merge_documents(base, other)
+    paths: Any = merged["paths"]
+
+    assert sorted(paths["/f/{id}"]) == [
+        "delete",
+        "get",
+        "parameters",
+    ]
+    with pytest.raises(ValueError, match="disagree on parameters of path"):
+        merge_documents(base, _document(paths={"/f/{id}": {"parameters": []}}))
+    with pytest.raises(ValueError, match="Operation declared twice: GET"):
+        merge_documents(base, _document(paths={"/f/{id}": {"get": {}}}))
+
+
+def test_merge_documents_tells_booleans_from_numbers() -> None:
+    base = _document(components={"schemas": {"A": {"const": True}}})
+
+    assert merge_documents(base, base) == base
+    with pytest.raises(ValueError, match="disagree on schema A"):
+        merge_documents(
+            base, _document(components={"schemas": {"A": {"const": 1}}})
+        )
