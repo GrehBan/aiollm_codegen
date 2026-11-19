@@ -599,3 +599,45 @@ def test_request_objects_stay_open_where_the_schema_is_open(
     assert opened.model_dump(by_alias=True) == {"a": "1", "b": 2}
     with pytest.raises(ValidationError, match="b"):
         module.Closed.model_validate({"a": "1", "b": 2})
+
+
+def test_bracketed_names_keep_their_wire_name(
+    spec: Callable[..., Path],
+    models: Callable[..., Any],
+) -> None:
+    # ids[] becomes ids; a keyword stem or a stem another property already
+    # takes, in any object, is left to the backend's own naming.
+    source = spec(
+        {
+            "Query": {
+                "type": "object",
+                "properties": {
+                    "ids[]": {"type": "array", "items": {"type": "string"}},
+                    "class[]": {"type": "string"},
+                },
+            },
+            "Clash": {
+                "type": "object",
+                "properties": {
+                    "tags": {"type": "string"},
+                    "tags[]": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        }
+    )
+    module = models(source, kind="request")
+
+    query = module.Query(ids=["a", "b"])
+    assert query.model_dump(by_alias=True, exclude_unset=True) == {
+        "ids[]": ["a", "b"]
+    }
+    fields = module.Query.model_fields
+    assert fields["ids"].serialization_alias == "ids[]"
+    (keyword_field,) = [name for name in fields if name != "ids"]
+    assert fields[keyword_field].serialization_alias == "class[]"
+    clash = module.Clash.model_fields
+    assert "tags" in clash
+    assert clash["tags"].serialization_alias in (None, "tags")
+    assert sorted(
+        field.serialization_alias or name for name, field in clash.items()
+    ) == ["tags", "tags[]"]

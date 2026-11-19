@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 from collections.abc import Sequence
+from keyword import iskeyword
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Final, Literal
@@ -306,9 +307,13 @@ def _bracket_aliases(document: JsonValue) -> dict[str, str]:
 
     A query parameter or form field written with brackets (``ids[]``,
     as Anthropic lists file ids) keeps its wire name as the alias; the
-    backend would otherwise name the field ``ids__``.
+    backend would otherwise name the field ``ids__``. The backend applies
+    the map to every model, so a name is left to the backend's own
+    naming wherever its stem is a keyword or, in any object, another
+    property already takes the stem.
     """
     found: dict[str, str] = {}
+    taken: set[str] = set()
     pending = [document]
     while pending:
         node = pending.pop()
@@ -317,12 +322,19 @@ def _bracket_aliases(document: JsonValue) -> dict[str, str]:
             if isinstance(properties, dict):
                 for name in properties:
                     stem = name.removesuffix("[]")
-                    if stem != name and stem.isidentifier():
-                        found[name] = stem
+                    if (
+                        stem == name
+                        or not stem.isidentifier()
+                        or iskeyword(stem)
+                    ):
+                        continue
+                    found[name] = stem
+                    if stem in properties:
+                        taken.add(name)
             pending.extend(node.values())
         elif isinstance(node, list):
             pending.extend(node)
-    return found
+    return {name: stem for name, stem in found.items() if name not in taken}
 
 
 def generate_document(

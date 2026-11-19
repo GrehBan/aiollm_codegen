@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Final
 from urllib.parse import unquote
 
 import yaml
@@ -85,40 +86,60 @@ def load_document(
 def merge_documents(
     base: dict[str, JsonValue], *others: dict[str, JsonValue]
 ) -> dict[str, JsonValue]:
-    """Add the paths and component schemas of other documents to one.
+    """Add the paths and components of other documents to one.
 
     One package can then come from several specifications, such as a
     provider's contract snapshot and a document of its other endpoints;
-    the base keeps its ``info`` and ``servers``.
+    the base keeps its ``info`` and ``servers``. Every component section
+    (``schemas``, ``parameters``, ``requestBodies``, ...) is merged, so a
+    merged operation keeps what it refers to; a path's own fields, such
+    as its ``parameters``, may appear in both documents when they agree.
 
     Raises:
         ValueError: If two documents declare the same operation, or the
-            same component schema differently.
+            same component or path field differently.
     """
     merged = dict(base)
     paths = dict(_object(merged.get("paths", {}), "paths"))
     components = dict(_object(merged["components"], "components"))
-    schemas = dict(_object(components["schemas"], "components.schemas"))
     for other in others:
         for path, item in _object(other.get("paths", {}), "paths").items():
-            methods = dict(_object(paths.get(path, {}), f"path {path}"))
-            for method, operation in _object(item, f"path {path}").items():
-                if method in methods:
+            fields = dict(_object(paths.get(path, {}), f"path {path}"))
+            for key, value in _object(item, f"path {path}").items():
+                if key in fields and key in HTTP_METHODS:
                     raise ValueError(
-                        f"Operation declared twice: {method.upper()} {path}"
+                        f"Operation declared twice: {key.upper()} {path}"
                     )
-                methods[method] = operation
-            paths[path] = methods
-        extra = _object(other["components"], "components")
-        for name, schema in _object(
-            extra["schemas"], "components.schemas"
-        ).items():
-            if schemas.setdefault(name, schema) != schema:
-                raise ValueError(f"Documents disagree on schema {name}")
-    components["schemas"] = schemas
+                if _differ(fields.setdefault(key, value), value):
+                    raise ValueError(
+                        f"Documents disagree on {key} of path {path}"
+                    )
+            paths[path] = fields
+        extra = _object(other.get("components", {}), "components")
+        for section, entries in extra.items():
+            label = f"components.{section}"
+            known = dict(_object(components.get(section, {}), label))
+            for name, value in _object(entries, label).items():
+                if _differ(known.setdefault(name, value), value):
+                    kind = "schema" if section == "schemas" else section
+                    raise ValueError(f"Documents disagree on {kind} {name}")
+            components[section] = known
     merged["paths"] = paths
     merged["components"] = components
     return merged
+
+
+HTTP_METHODS: Final = frozenset(
+    {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+)
+"""The keys of a path item that are operations."""
+
+
+def _differ(first: JsonValue, second: JsonValue) -> bool:
+    """Compare two JSON values by their JSON, so ``true`` is not ``1``."""
+    return json.dumps(first, sort_keys=True) != json.dumps(
+        second, sort_keys=True
+    )
 
 
 def _object(value: JsonValue, label: str) -> dict[str, JsonValue]:
