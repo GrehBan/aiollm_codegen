@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 from aiollm_codegen import generate_models
-from aiollm_codegen.schema import load_schemas, schema_nodes
+from aiollm_codegen.schema import load_schemas, merge_documents, schema_nodes
 from pydantic import JsonValue
 
 
@@ -216,3 +216,16 @@ def test_multiple_module_backend_result_rejected(
         pytest.raises(ValueError, match="single generated module"),
     ):
         generate_models(path, kind="request")
+
+
+def test_merge_documents_requires_objects() -> None:
+    base: dict[str, Any] = {
+        "openapi": "3.1.0",
+        "paths": {},
+        "components": {"schemas": {"A": {"type": "string"}}},
+    }
+    other: dict[str, Any] = {"paths": [], "components": {"schemas": {}}}
+
+    with pytest.raises(ValueError, match="Expected an object for paths"):
+        merge_documents(base, other)
+    assert merge_documents(base) == base

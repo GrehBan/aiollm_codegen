@@ -12,7 +12,13 @@ from pydantic import JsonValue, TypeAdapter
 
 from aiollm_codegen.normalization import json_schema_document, schema_nodes
 
-__all__ = ["load_document", "load_schemas", "schema_nodes", "select_schemas"]
+__all__ = [
+    "load_document",
+    "load_schemas",
+    "merge_documents",
+    "schema_nodes",
+    "select_schemas",
+]
 
 _JSON = TypeAdapter(JsonValue)
 _PREFIX = "#/components/schemas/"
@@ -74,6 +80,52 @@ def load_document(
     if not isinstance(available, dict) or not available:
         raise ValueError("Expected nonempty components.schemas")
     return document
+
+
+def merge_documents(
+    base: dict[str, JsonValue], *others: dict[str, JsonValue]
+) -> dict[str, JsonValue]:
+    """Add the paths and component schemas of other documents to one.
+
+    One package can then come from several specifications, such as a
+    provider's contract snapshot and a document of its other endpoints;
+    the base keeps its ``info`` and ``servers``.
+
+    Raises:
+        ValueError: If two documents declare the same operation, or the
+            same component schema differently.
+    """
+    merged = dict(base)
+    paths = dict(_object(merged.get("paths", {}), "paths"))
+    components = dict(_object(merged["components"], "components"))
+    schemas = dict(_object(components["schemas"], "components.schemas"))
+    for other in others:
+        for path, item in _object(other.get("paths", {}), "paths").items():
+            methods = dict(_object(paths.get(path, {}), f"path {path}"))
+            for method, operation in _object(item, f"path {path}").items():
+                if method in methods:
+                    raise ValueError(
+                        f"Operation declared twice: {method.upper()} {path}"
+                    )
+                methods[method] = operation
+            paths[path] = methods
+        extra = _object(other["components"], "components")
+        for name, schema in _object(
+            extra["schemas"], "components.schemas"
+        ).items():
+            if schemas.setdefault(name, schema) != schema:
+                raise ValueError(f"Documents disagree on schema {name}")
+    components["schemas"] = schemas
+    merged["paths"] = paths
+    merged["components"] = components
+    return merged
+
+
+def _object(value: JsonValue, label: str) -> dict[str, JsonValue]:
+    """Require an object in a document being merged."""
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected an object for {label}")
+    return value
 
 
 def select_schemas(

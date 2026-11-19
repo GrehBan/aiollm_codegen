@@ -819,6 +819,133 @@ def test_cli_package_mode(
     assert main(arguments) == 0
 
 
+def _files_spec(tmp_path: Path, schemas: dict[str, Any]) -> Path:
+    """Write a second specification with one list operation."""
+    path = tmp_path / "files.json"
+    document = {
+        "openapi": "3.1.0",
+        "info": {"title": "Files API", "version": "1"},
+        "paths": {
+            "/files": {
+                "get": {
+                    "operationId": "listFiles",
+                    "tags": ["Files"],
+                    "summary": "List files.",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "ids[]",
+                            "schema": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/FileList"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                }
+            }
+        },
+        "components": {"schemas": schemas},
+    }
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path
+
+
+def test_cli_merges_specifications_into_one_package(
+    api: dict[str, Any],
+    write_api: Callable[[dict[str, Any]], Path],
+    tmp_path: Path,
+) -> None:
+    files = _files_spec(
+        tmp_path,
+        {
+            "FileList": {
+                "type": "object",
+                "properties": {
+                    "data": {"type": "array", "items": {"type": "string"}}
+                },
+                "required": ["data"],
+            }
+        },
+    )
+    output = tmp_path / "output"
+    arguments = [
+        str(write_api(api)),
+        "--package",
+        "--merge",
+        str(files),
+        "--operation",
+        "createResponse",
+        "--operation",
+        "listFiles",
+        "-o",
+        str(output),
+    ]
+
+    assert main(arguments) == 0
+    methods = (output / "methods/files.py").read_text("utf-8")
+    params = (output / "methods/params/files.py").read_text("utf-8")
+    assert "class ListFiles(" in methods
+    assert 'frozenset(("ids",))' in methods
+    assert "    ids: Annotated[" in params
+    assert 'serialization_alias="ids[]"' in params
+    assert "class FileList(" in (output / "types/files.py").read_text("utf-8")
+    assert (output / "methods/responses.py").exists()
+
+
+def test_cli_merge_rejects_conflicts(
+    api: dict[str, Any],
+    write_api: Callable[[dict[str, Any]], Path],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = write_api(api)
+    clash = _files_spec(
+        tmp_path, {"GenerationResponse": {"type": "object"}, "FileList": {}}
+    )
+    output = tmp_path / "output"
+
+    assert (
+        main(
+            [
+                str(source),
+                "--package",
+                "--merge",
+                str(clash),
+                "-o",
+                str(output),
+            ]
+        )
+        == 1
+    )
+    assert "disagree on schema GenerationResponse" in capsys.readouterr().err
+    assert (
+        main(
+            [
+                str(source),
+                "--package",
+                "--merge",
+                str(source),
+                "-o",
+                str(output),
+            ]
+        )
+        == 1
+    )
+    assert "Operation declared twice" in capsys.readouterr().err
+    assert not output.exists()
+
+
 @pytest.mark.parametrize(
     "extra",
     [
@@ -827,6 +954,7 @@ def test_cli_package_mode(
         ["--kind", "request", "--operation", "x"],
         ["--kind", "request", "--group", "A=b"],
         ["--kind", "request", "--stream", "a=B"],
+        ["--kind", "request", "--merge", "x.json"],
         ["--package", "--schema", "A"],
     ],
 )

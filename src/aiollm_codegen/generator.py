@@ -301,6 +301,30 @@ def generate_models(
     return format_source(result)
 
 
+def _bracket_aliases(document: JsonValue) -> dict[str, str]:
+    """Name each ``key[]`` property ``key`` in Python.
+
+    A query parameter or form field written with brackets (``ids[]``,
+    as Anthropic lists file ids) keeps its wire name as the alias; the
+    backend would otherwise name the field ``ids__``.
+    """
+    found: dict[str, str] = {}
+    pending = [document]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                for name in properties:
+                    stem = name.removesuffix("[]")
+                    if stem != name and stem.isidentifier():
+                        found[name] = stem
+            pending.extend(node.values())
+        elif isinstance(node, list):
+            pending.extend(node)
+    return found
+
+
 def generate_document(
     document: dict[str, JsonValue],
     *,
@@ -349,6 +373,7 @@ def generate_document(
             settings_path=Path(directory),
             allow_remote_refs=False,
             emit_model_metadata=metadata_path,
+            aliases=_bracket_aliases(document),
         )
         metadata = GenerationMetadata.model_validate_json(
             metadata_path.read_text("utf-8")
