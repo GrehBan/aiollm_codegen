@@ -1,4 +1,4 @@
-"""Generated models follow the adjacent aiollm provider snapshots."""
+"""Generated models follow the snapshots of the adjacent provider checkouts."""
 
 from __future__ import annotations
 
@@ -21,9 +21,15 @@ from pydantic import BaseModel, TypeAdapter
 import aiollm
 
 AIOLLM = Path(aiollm.__file__).resolve().parents[2]
-CONTRACTS = AIOLLM / "tests/providers/contracts"
 PROJECT = Path(__file__).resolve().parents[1]
-CASES = ("openai/responses", "anthropic/messages")
+CONTRACTS = {
+    "openai/responses": PROJECT.parent
+    / "aiollm_openai/tests/contracts/responses",
+    "anthropic/messages": PROJECT.parent
+    / "aiollm_anthropic/tests/contracts/messages",
+}
+"""Each provider's snapshot, in its repository checked out beside this one."""
+CASES = tuple(CONTRACTS)
 
 
 def _write_method_package(destination: Path) -> None:
@@ -102,7 +108,7 @@ def contracts(
     modules = {}
     for case in CASES:
         for profile in ("request", "response", "stream"):
-            source = CONTRACTS / case / f"{profile}.schema.json"
+            source = CONTRACTS[case] / f"{profile}.schema.json"
             name = f"{case.split('/')[0]}_{profile}"
             output = destination / f"{name}.py"
             output.write_text(
@@ -140,7 +146,7 @@ def test_generated_contracts_validate_all_saved_payloads(
                 getattr(module, schema.get("title", "Stream"))
             )
             examples = json.loads(
-                (CONTRACTS / case / f"{filename}.json").read_text("utf-8")
+                (CONTRACTS[case] / f"{filename}.json").read_text("utf-8")
             )
             for example in examples:
                 value = adapter.validate_python(example["body"])
@@ -228,6 +234,10 @@ def test_bundled_lint_profile_matches_aiollm() -> None:
     bundled = tomllib.loads(
         (PROJECT / "src/aiollm_codegen/strict.toml").read_text("utf-8")
     )
-    assert bundled["lint"] == upstream["lint"]
+    # The rules, not the paths: per-file-ignores name the core's own files.
+    own = ("per-file-ignores",)
+    assert {k: v for k, v in bundled["lint"].items() if k not in own} == {
+        k: v for k, v in upstream["lint"].items() if k not in own
+    }
     assert bundled["line-length"] == upstream["line-length"]
     assert bundled["target-version"] == upstream["target-version"]

@@ -8,12 +8,14 @@ before adding it to a provider package.
 
 ## Setup
 
-Keep the two repositories side by side:
+Keep the core and the providers side by side:
 
 ```text
 code/
   aiollm/
+  aiollm_anthropic/
   aiollm_codegen/
+  aiollm_openai/
 ```
 
 ```bash
@@ -21,9 +23,11 @@ cd aiollm_codegen
 uv sync --all-groups --locked
 ```
 
-The development environment installs `../aiollm` as an editable dependency
-so tests verify the actual library contracts. The generator itself does not
-import aiollm. To use generated modules elsewhere, install aiollm and
+The development environment installs the core, `../aiollm` (the
+`aiollm-core` distribution), as an editable dependency so tests verify the
+actual library contracts, and reads the providers' contract snapshots from
+`../aiollm_openai` and `../aiollm_anthropic`. The generator itself does not
+import aiollm. To use generated modules elsewhere, install aiollm-core and
 Pydantic 2.14+ in the target environment. Some schema formats may require
 additional Pydantic dependencies, such as `pydantic[email]` for email fields.
 
@@ -128,15 +132,16 @@ annotation shows what the wire allows. In responses, a field that is
 required but nullable may be left out and reads as `None`; providers omit
 such fields. A URL with a `maxLength` becomes a string that keeps the limit.
 
-Anthropic publishes no OpenAPI document; its methods come from aiollm's
-contract snapshot, derived from the types of Anthropic's official SDK.
+Anthropic publishes no OpenAPI document; its methods come from the
+contract snapshot of [aiollm_anthropic](https://github.com/aiollm-org/aiollm_anthropic),
+derived from the types of Anthropic's official SDK.
 `--contract PATH` reads a folder with `request.schema.json`,
 `response.schema.json` and `stream.schema.json` as `POST PATH`, named
 after the response (`CreateMessage`, `StreamMessage`,
 `MessageStreamEvent`):
 
 ```bash
-uv run aiollm-codegen ../aiollm/tests/providers/contracts/anthropic/messages \
+uv run aiollm-codegen ../aiollm_anthropic/tests/contracts/messages \
   --package --contract /messages \
   --header anthropic-version=2026-10-21 -o generated/anthropic
 ```
@@ -149,8 +154,8 @@ operation declared twice, or one component schema declared differently,
 is an error.
 
 ```bash
-contracts=../aiollm/tests/providers/contracts
-uv run aiollm-codegen "$contracts/anthropic/messages" \
+contracts=../aiollm_anthropic/tests/contracts
+uv run aiollm-codegen "$contracts/messages" \
   --package --contract /messages \
   --merge "$contracts/sources/anthropic-files.openapi.json" \
   --header anthropic-version=2026-10-21 -o generated/anthropic
