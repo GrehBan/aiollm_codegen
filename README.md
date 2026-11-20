@@ -129,9 +129,10 @@ required but nullable may be left out and reads as `None`; providers omit
 such fields. A URL with a `maxLength` becomes a string that keeps the limit.
 
 Anthropic publishes no OpenAPI document; its methods come from aiollm's
-docs-lite snapshot. `--contract PATH` reads a folder with
-`request.schema.json`, `response.schema.json` and `stream.schema.json` as
-`POST PATH`, named after the response (`CreateMessage`, `StreamMessage`,
+contract snapshot, derived from the types of Anthropic's official SDK.
+`--contract PATH` reads a folder with `request.schema.json`,
+`response.schema.json` and `stream.schema.json` as `POST PATH`, named
+after the response (`CreateMessage`, `StreamMessage`,
 `MessageStreamEvent`):
 
 ```bash
