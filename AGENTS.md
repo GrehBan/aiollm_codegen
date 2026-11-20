@@ -17,12 +17,13 @@ rather than building another schema compiler.
 
 `examples/` contains input fixtures; `tests/` checks generated behavior.
 `generated/` contains regenerable outputs. Provider snapshots live in the
-adjacent `../aiollm/tests/providers/contracts/` checkout.
+adjacent provider checkouts, `../aiollm_openai/tests/contracts/` and
+`../aiollm_anthropic/tests/contracts/`; the core is `../aiollm`.
 
 ## Development Commands
 
-Keep both repositories adjacent; install with `uv sync --all-groups --locked`.
-Run the complete gate:
+Keep the core and both provider repositories adjacent; install with
+`uv sync --all-groups --locked`. Run the complete gate:
 
 ```bash
 uv run ruff check src tests

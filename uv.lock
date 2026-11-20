@@ -155,11 +155,59 @@ wheels = [
 ]
 
 [[package]]
-name = "aiollm"
+name = "aiollm-codegen"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "datamodel-code-generator" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "ruff" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "aiollm-core" },
+    { name = "jsonschema" },
+    { name = "mypy" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-mypy" },
+    { name = "rumdl" },
+    { name = "types-jsonschema" },
+    { name = "types-pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "datamodel-code-generator", specifier = ">=0.87,<0.88" },
+    { name = "pydantic", specifier = ">=2.14,<3" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "ruff", specifier = ">=0.17.3,<0.18" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "aiollm-core", editable = "../aiollm" },
+    { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "mypy", specifier = ">=2.4.1" },
+    { name = "pyright", specifier = ">=1.1.414" },
+    { name = "pytest", specifier = ">=9.2.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-mypy", specifier = ">=1.1.0" },
+    { name = "rumdl", specifier = ">=0.3.2" },
+    { name = "types-jsonschema", specifier = ">=4.26.0.20261006" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20261103" },
+]
+
+[[package]]
+name = "aiollm-core"
 source = { editable = "../aiollm" }
 dependencies = [
     { name = "aiodns" },
     { name = "aiohttp" },
+    { name = "aiopulse-py" },
     { name = "brotli" },
     { name = "certifi" },
     { name = "multidict" },
@@ -174,15 +222,21 @@ dependencies = [
 requires-dist = [
     { name = "aiodns", specifier = ">=4.0.4" },
     { name = "aiohttp", specifier = ">=3.14.5" },
+    { name = "aiopulse-py", specifier = ">=0.0.5" },
     { name = "brotli", specifier = ">=1.2.1" },
     { name = "certifi", specifier = ">=2026.10.23" },
+    { name = "jsonschema", marker = "extra == 'testing'", specifier = ">=4.25" },
     { name = "multidict", specifier = ">=7.2.1" },
     { name = "orjson", specifier = ">=3.13.0" },
     { name = "pydantic", specifier = ">=2.14.1" },
+    { name = "pytest", marker = "extra == 'testing'", specifier = ">=9.2.0" },
+    { name = "pytest-aiohttp", marker = "extra == 'testing'", specifier = ">=1.1.1" },
+    { name = "pytest-asyncio", marker = "extra == 'testing'", specifier = ">=1.4.1" },
     { name = "tenacity", specifier = ">=9.2.1" },
     { name = "typing-extensions", specifier = ">=4.16.0" },
     { name = "yarl", specifier = ">=1.25.1" },
 ]
+provides-extras = ["testing"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -212,50 +266,15 @@ test = [
 ]
 
 [[package]]
-name = "aiollm-codegen"
-version = "0.1.0"
-source = { editable = "." }
+name = "aiopulse-py"
+version = "0.0.5"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "datamodel-code-generator" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "ruff" },
+    { name = "typing-extensions" },
 ]
-
-[package.dev-dependencies]
-dev = [
-    { name = "aiollm" },
-    { name = "jsonschema" },
-    { name = "mypy" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-mypy" },
-    { name = "rumdl" },
-    { name = "types-jsonschema" },
-    { name = "types-pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "datamodel-code-generator", specifier = ">=0.87,<0.88" },
-    { name = "pydantic", specifier = ">=2.14,<3" },
-    { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "ruff", specifier = ">=0.17.3,<0.18" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "aiollm", editable = "../aiollm" },
-    { name = "jsonschema", specifier = ">=4.26.0" },
-    { name = "mypy", specifier = ">=2.4.1" },
-    { name = "pyright", specifier = ">=1.1.414" },
-    { name = "pytest", specifier = ">=9.2.0" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "pytest-mypy", specifier = ">=1.1.0" },
-    { name = "rumdl", specifier = ">=0.3.2" },
-    { name = "types-jsonschema", specifier = ">=4.26.0.20261006" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20261103" },
+sdist = { url = "https://files.pythonhosted.org/packages/28/da/b50f94b95a51cca7ed99a1bded73818a18aadf7fb99d60fb2215de3718fa/aiopulse_py-0.0.5.tar.gz", hash = "sha256:8c4a1ba6f98f25dd19ff22e3967a7f9cfc101c2d137bb6f65d653cf95e747296", size = 92445, upload-time = "2026-11-19T16:20:00.358Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7a/0d/a8eda551cc3bc0a60b5b1ac199f61d9b76eb63b9e44282b1fbc03cfa9a48/aiopulse_py-0.0.5-py3-none-any.whl", hash = "sha256:255816a83f393febd5bb40f18f1a18c7dc7749ae3def28abc525396f09d6acef", size = 16727, upload-time = "2026-11-19T16:19:59.042Z" },
 ]
 
 [[package]]
