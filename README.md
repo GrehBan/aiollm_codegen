@@ -2,7 +2,7 @@
 
 Generate Python 3.13+ Pydantic v2 **provider data models and endpoint methods**
 compatible with
-[`aiollm`](https://github.com/GrehBan/aiollm) from local OpenAPI 3.0/3.1
+[`aiollm`](https://github.com/aiollm-org/aiollm) from local OpenAPI 3.0/3.1
 JSON or YAML files. Version 0.1 is experimental; review generated code
 before adding it to a provider package.
 

@@ -21,7 +21,7 @@ jobs:
           path: aiollm_codegen
       - uses: actions/checkout@v7
         with:
-          repository: GrehBan/aiollm
+          repository: aiollm-org/aiollm
           ref: e2b7013c95ecf59e3819a79779fca5a3ee3a2020
           path: aiollm
       - uses: astral-sh/setup-uv@v10.3.3
